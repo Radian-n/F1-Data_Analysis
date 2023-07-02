@@ -1,0 +1,7 @@
+"0","# Team/Constructor data ---------------------------------------------------
+paste0(""http://ergast.com/api/f1/"", YEAR, ""/driverStandings.json"")
+"
+"1","[1]"
+"1"," ""http://ergast.com/api/f1/2023/driverStandings.json"""
+"1","
+"

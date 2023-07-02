@@ -1,0 +1,5 @@
+"0","# Join teams"
+"0","laptimes_constructor.df <- laptimes_clean.df %>%"
+"0","  left_join(driver_constructors_clean.df, by=""driverId"")"
+"0",""
+"0","head(laptimes_constructor.df)"
