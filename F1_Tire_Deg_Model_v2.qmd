@@ -1,0 +1,105 @@
+---
+title: "F1 Tire Degradation Model"
+author: "Matthew Kirk"
+date: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: false
+    code-tools: true
+filters: 
+  - include-code-files
+
+editor: visual
+---
+
+## Project Summary
+
+Use race lap times to create predictive tire falloff models for each driver, to use live in future races.
+
+This project uses data from the [FastF1](https://docs.fastf1.dev/examples/index.html) Python library, and imports it into the R environment for analysis.
+
+This project also used the [Ergast F1 API](http://ergast.com/mrd/) for initial EDA and simplified models.
+
+------------------------------------------------------------------------
+
+**TODO:**
+
+-   Normalise lap time some how? First lap = 1 or something?
+
+    -   Get circuit lap length? Longer lap = more wear per lap?
+
+-   *Extension:* use this tire model to create simulated pit stop prediction models/visualisations (using D3.js).
+
+## Introduction
+
+### Data Sources
+
+Initially, I used the Ergast F1 API as my main source of data, as it was an easy to use API that I could access with simple R tools. However, I soon realised that Ergast was missing a whole lot of data that I was interested in for this project.
+
+Most importantly, the Ergast API did not track the tire compounds used. This is probably one of the most important pieces of information when trying to model tire degradation, as different compounds may have different falloff properties.
+
+I was also interested in weather, which Ergast did not track.
+
+Finally, my long term plan is to have this model run live during a race. Since the Ergast data is only updated hours after a session, it was never going to be the 'final' data source for this project.
+
+For all these reasons, I decided to use the FastF1 Python library. I was initially hesitant to do this, because I want to do this project in R, and the Ergast API was much faster to pick up. But crucially, the FastF1 API has so much more data, and it has functionality to live stream the data during sessions, which would be useful later in the project when it comes to running these models live. For these reasons I decided I may as well go with FastF1.
+
+Below is the my code for accessing the data. Note, this script is designed to be run from the command line with one argument (year). The program loops through every race of the season and outputs a single parquet file.
+
+``` {.python include="get_race_data.py"}
+```
+
+## Packages
+
+```{r}
+#| label: r-load-packages
+#| include: true
+#| output: false
+
+
+library(tidyverse)
+library(lubridate)
+library(jsonlite)
+library(knitr)
+library(arrow)
+```
+
+## Import Data
+
+```{r}
+#| label: folder structure settings
+DATA_PATH <- "data/races_2023"
+```
+
+```{r}
+raw_df <- read_parquet(paste0(DATA_PATH, ".parquet"))
+head(raw_df)
+```
+
+```{r}
+laptime_df <- raw_df %>%
+  select(Round, Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall)
+
+head(laptime_df)
+```
+
+```{r}
+temp <- laptime_df %>%
+  group_by(Round, Driver, Stint) %>%
+  mutate(StintLaps = 1) %>%
+  mutate(StintLaps = cumsum(StintLaps))
+
+```
+
+```{r}
+temp %>%
+  filter(Driver == "ZHO",
+         is.na(PitOutTime),
+         is.na(PitInTime),
+         !str_detect(as.character(TrackStatus), "[4567]"),
+         Stint == 2) %>%  # If safety Car
+  ggplot() + 
+  geom_point(aes(x = StintLaps, y = LapTime, group = Stint, colour = Compound)) +
+  facet_wrap(vars(Round))
+
+```

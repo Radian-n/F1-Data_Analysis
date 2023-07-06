@@ -1,5 +1,5 @@
 # Formula 1 Data Analysis Project
-Matthew Kirk
+By: Matthew Kirk
 
 
 ## Currently working on:
