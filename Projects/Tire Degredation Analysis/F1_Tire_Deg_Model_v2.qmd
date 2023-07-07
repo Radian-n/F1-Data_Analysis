@@ -9,6 +9,12 @@ format:
 editor: visual
 ---
 
+```{r}
+#| include: false
+#| echo: false
+# This chunk is only here to set the default chunk type to R
+```
+
 ## Project Summary
 
 Use race lap times to create predictive tire falloff models for each driver, to use live in future races.
@@ -69,7 +75,9 @@ library(rvest)
 ## Import Lap Time & Weather Data
 
 ```{r}
-#| label: folder structure settings
+#| label: folder-structure-settings
+
+
 DATA_PATH <- "data/"
 YEAR <- 2023
 ```
