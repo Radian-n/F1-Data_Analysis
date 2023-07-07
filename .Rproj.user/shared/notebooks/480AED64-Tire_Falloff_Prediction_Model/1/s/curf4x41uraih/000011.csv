@@ -1,6 +1,0 @@
-"0","# Remove NAs"
-"0","laptimes_constructor_pits.df <- laptimes_constructor_pits.df %>%"
-"0","  mutate(is_in_lap = ifelse(is.na(is_in_lap), 0, 1),"
-"0","         is_out_lap = ifelse(is.na(is_out_lap), 0, 1))"
-"0",""
-"0","head(laptimes_constructor_pits.df)"

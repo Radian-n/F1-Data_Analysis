@@ -1,4 +1,0 @@
-"0","# if laptime > median(laptimes) AND not in/out lap ()"
-"0","sc_cutoff <- median(laptimes_constructor_pits.df$laptime_seconds) * 1.1"
-"0",""
-"0",""

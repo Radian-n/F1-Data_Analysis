@@ -1,5 +1,0 @@
-"0","laptimes_constructor_pits.df <- laptimes_constructor_pits.df %>%"
-"0","  arrange(driverId, lap) %>%"
-"0","  mutate(prev_laptime_seconds = ifelse(is_first_lap != 1, lag(laptime_seconds), NA)) %>%"
-"0","  arrange(lap, position)"
-"0",""

@@ -1,8 +1,0 @@
-"0","# Join pitstops"
-"0","laptimes_constructor_pits.df <- laptimes_constructor.df %>%"
-"0","  left_join(pitstops_in.df,"
-"0","            by = join_by(driverId == driverId, lap == pit_in_lap)) %>%"
-"0","  left_join(pitstops_out.df,"
-"0","            by = join_by(driverId == driverId, lap == pit_out_lap))"
-"0",""
-"0","head(laptimes_constructor_pits.df)"

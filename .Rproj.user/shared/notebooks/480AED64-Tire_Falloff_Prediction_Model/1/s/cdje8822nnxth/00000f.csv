@@ -1,2 +1,0 @@
-"0","laptimes_constructor_pits.df <- laptimes_constructor_pits.df %>%"
-"0","  mutate(is_first_lap = ifelse(lap == 1, 1, 0))"
