@@ -239,10 +239,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="import-lap-time-weather-data" class="level2">
 <h2 class="anchored" data-anchor-id="import-lap-time-weather-data">Import Lap Time &amp; Weather Data</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>DATA_PATH <span class="ot">&lt;-</span> <span class="st">"data/races_2023"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>DATA_PATH <span class="ot">&lt;-</span> <span class="st">"data/"</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>YEAR <span class="ot">&lt;-</span> <span class="dv">2023</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>raw_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">".parquet"</span>))</span>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>raw_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">"races_"</span>, YEAR, <span class="st">".parquet"</span>))</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(raw_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 39
@@ -288,8 +289,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="get-circuit-data" class="level2">
 <h2 class="anchored" data-anchor-id="get-circuit-data">Get Circuit Data</h2>
-<p>The following code access the Race Schedule endpoint of the Ergast F1 API. It then accesses the Wikipedia article for the corresponding race and gets track details such as lap length, and type (street course, permanent faculty).</p>
-<p>Finally, it writes to parquet</p>
+<p>The following code access the Race Schedule endpoint of the Ergast F1 API. It then accesses the Wikipedia article for the corresponding race and gets track details such as lap length, and type (street course, permanent faculty). Finally, it writes locally to a parquet file.</p>
 <div class="cell" data-file="get_circuit_data.R">
 <details>
 <summary>Code</summary>
@@ -301,96 +301,124 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>YEAR <span class="ot">&lt;-</span> <span class="dv">2023</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>YEAR <span class="ot">&lt;-</span> <span class="dv">2023</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Get circuits for given year ---------------------------------------------</span></span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>circuit_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"https://ergast.com/api/f1/"</span>, YEAR, <span class="st">".json"</span>)</span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> <span class="fu">unnest</span>(<span class="fu">fromJSON</span>(circuit_url)<span class="sc">$</span>MRData<span class="sc">$</span>RaceTable<span class="sc">$</span>Races, </span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>                      <span class="at">cols =</span> <span class="fu">c</span>(Circuit, </span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                               FirstPractice, </span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>                               SecondPractice, </span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>                               ThirdPractice, </span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>                               Qualifying, </span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>                               Sprint), </span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>                      <span class="at">names_sep =</span> <span class="st">"_"</span>)</span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Get circuits for given year ---------------------------------------------</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Use Ergast api</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>circuit_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"https://ergast.com/api/f1/"</span>, YEAR, <span class="st">".json"</span>)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> <span class="fu">unnest</span>(<span class="fu">fromJSON</span>(circuit_url)<span class="sc">$</span>MRData<span class="sc">$</span>RaceTable<span class="sc">$</span>Races, </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>                      <span class="at">cols =</span> <span class="fu">c</span>(Circuit, </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>                               FirstPractice, </span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>                               SecondPractice, </span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>                               ThirdPractice, </span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>                               Qualifying, </span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>                               Sprint), </span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>                      <span class="at">names_sep =</span> <span class="st">"_"</span>)</span>
 <span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean &amp; Convert data types ----------------------------------------------</span></span>
-<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove columns that are not relevant. Convert to correct types (numeric,</span></span>
-<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a><span class="co"># datetime, etc.)</span></span>
-<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> circuits_df <span class="sc">%&gt;%</span></span>
-<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(season, round, url, raceName, Circuit_circuitId, date, time) <span class="sc">%&gt;%</span></span>
-<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">circuitId =</span> Circuit_circuitId, <span class="at">raceDate =</span> date, <span class="at">raceTime =</span> time) <span class="sc">%&gt;%</span></span>
-<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">raceDate =</span> <span class="fu">ymd</span>(raceDate), </span>
-<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>         <span class="at">raceTime =</span> <span class="fu">hms</span>(raceTime), </span>
-<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>         <span class="at">round =</span> <span class="fu">as.numeric</span>(round), </span>
-<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>         <span class="at">season =</span> <span class="fu">as.numeric</span>(season))</span>
-<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Clean &amp; Convert data types ----------------------------------------------</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove columns that are not relevant. Convert to correct types (numeric,</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co"># datetime, etc.)</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> circuits_df <span class="sc">%&gt;%</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(season, round, url, raceName, Circuit_circuitId, date, time) <span class="sc">%&gt;%</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">circuitId =</span> Circuit_circuitId, <span class="at">raceDate =</span> date, <span class="at">raceTime =</span> time) <span class="sc">%&gt;%</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">raceDate =</span> <span class="fu">ymd</span>(raceDate), </span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>         <span class="at">raceTime =</span> <span class="fu">hms</span>(raceTime), </span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>         <span class="at">round =</span> <span class="fu">as.numeric</span>(round), </span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>         <span class="at">season =</span> <span class="fu">as.numeric</span>(season))</span>
 <span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Define function to extract lap distance from Wikipedia race repo --------</span></span>
-<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Use rvest to get the circuit length from the corresponding Wikipedia page (in</span></span>
-<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a><span class="co"># url column)</span></span>
-<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>get_lap_distance <span class="ot">&lt;-</span> <span class="cf">function</span>(race_wiki_url){</span>
-<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.1</span>)</span>
-<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>  lapDistanceKm <span class="ot">&lt;-</span> race_wiki_url <span class="sc">%&gt;%</span></span>
-<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_html</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_element</span>(</span>
-<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>      <span class="at">xpath =</span> <span class="st">'//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[9]/td'</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>    html_text2 <span class="sc">%&gt;%</span></span>
-<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_extract</span>(<span class="st">"^(.*)(?= km)"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>()</span>
-<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(lapDistanceKm)</span>
-<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="co"># Get circuit type from Wikipedia page</span></span>
-<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="co"># Use rvest again to get circuit type</span></span>
-<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>get_circuit_type <span class="ot">&lt;-</span> <span class="cf">function</span>(race_wiki_url) {</span>
-<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.1</span>)</span>
-<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>  circuitType <span class="ot">&lt;-</span> race_wiki_url <span class="sc">%&gt;%</span></span>
-<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_html</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_element</span>(</span>
-<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>      <span class="at">xpath =</span> <span class="st">'//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[8]/td'</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_text2</span>()</span>
-<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Define function to extract lap distance from Wikipedia race repo --------</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a><span class="co"># Use rvest to get the circuit length from the corresponding Wikipedia page (in</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a><span class="co"># url column)</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a>get_lap_distance <span class="ot">&lt;-</span> <span class="cf">function</span>(race_wiki_url){</span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.1</span>)</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>  lapDistanceKm <span class="ot">&lt;-</span> race_wiki_url <span class="sc">%&gt;%</span></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_html</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_element</span>(</span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>      <span class="at">xpath =</span> <span class="st">'//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[9]/td'</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>    html_text2 <span class="sc">%&gt;%</span></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    <span class="fu">str_extract</span>(<span class="st">"^(.*)(?= km)"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.numeric</span>()</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(lapDistanceKm)</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Get circuit type from Wikipedia page</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a><span class="co"># Use rvest again to get circuit type</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>get_circuit_type <span class="ot">&lt;-</span> <span class="cf">function</span>(race_wiki_url) {</span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">Sys.sleep</span>(<span class="fl">0.1</span>)</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>  circuitType <span class="ot">&lt;-</span> race_wiki_url <span class="sc">%&gt;%</span></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_html</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_element</span>(</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>      <span class="at">xpath =</span> <span class="st">'//*[@id="mw-content-text"]/div[1]/table[1]/tbody/tr[8]/td'</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">html_text2</span>()</span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a><span class="co"># Append lap distances to circuits_df -------------------------------------</span></span>
-<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Go through each row and call the previously defined functions, write to df</span></span>
-<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> circuits_df <span class="sc">%&gt;%</span></span>
-<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lapDistance =</span> <span class="fu">ifelse</span>(raceDate <span class="sc">&lt;</span> <span class="fu">Sys.Date</span>(), <span class="fu">get_lap_distance</span>(url), <span class="cn">NA</span>) ,</span>
-<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>         <span class="at">circuitType =</span> <span class="fu">ifelse</span>(raceDate <span class="sc">&lt;</span> <span class="fu">Sys.Date</span>(), <span class="fu">get_circuit_type</span>(url), <span class="cn">NA</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a><span class="co"># Append lap distances to circuits_df -------------------------------------</span></span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a><span class="co"># Go through each row and call the previously defined functions, write to df</span></span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> circuits_df <span class="sc">%&gt;%</span></span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rowwise</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">lapDistance =</span> <span class="fu">ifelse</span>(raceDate <span class="sc">&lt;</span> <span class="fu">Sys.Date</span>(), <span class="fu">get_lap_distance</span>(url), <span class="cn">NA</span>) ,</span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a>         <span class="at">circuitType =</span> <span class="fu">ifelse</span>(raceDate <span class="sc">&lt;</span> <span class="fu">Sys.Date</span>(), <span class="fu">get_circuit_type</span>(url), <span class="cn">NA</span>))</span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a><span class="co"># Write to parquet --------------------------------------------------------</span></span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a>path <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"data/circuits_"</span>, YEAR, <span class="st">".parquet"</span>)</span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a><span class="fu">write_parquet</span>(circuits_df, path)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
+<p>Import circuits dataframe.&nbsp;</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">"circuits_"</span>, YEAR, <span class="st">".parquet"</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(circuits_df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 9
+# Rowwise: 
+  season round url         raceN…¹ circu…² raceDate   raceTime   lapDi…³ circu…⁴
+   &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;       &lt;chr&gt;   &lt;chr&gt;   &lt;date&gt;     &lt;Period&gt;     &lt;dbl&gt; &lt;chr&gt;  
+1   2023     1 https://en… Bahrai… bahrain 2023-03-05 15H 0M 0S     5.41 Perman…
+2   2023     2 https://en… Saudi … jeddah  2023-03-19 17H 0M 0S     6.17 Street…
+3   2023     3 https://en… Austra… albert… 2023-04-02 5H 0M 0S      5.28 Street…
+4   2023     4 https://en… Azerba… baku    2023-04-30 11H 0M 0S     6.00 Street…
+5   2023     5 https://en… Miami … miami   2023-05-07 19H 30M 0S    5.41 Purpos…
+6   2023     6 https://en… Monaco… monaco  2023-05-28 13H 0M 0S     3.34 Street…
+# … with abbreviated variable names ¹​raceName, ²​circuitId, ³​lapDistance,
+#   ⁴​circuitType</code></pre>
+</div>
+</div>
+<p>Join circuits dataframe to laptime dataframe:</p>
 </section>
 <section id="test-plot" class="level2">
 <h2 class="anchored" data-anchor-id="test-plot">Test Plot</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>temp <span class="ot">&lt;-</span> laptime_df <span class="sc">%&gt;%</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Round, Driver, Stint) <span class="sc">%&gt;%</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="fu">cumsum</span>(StintLaps))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>temp <span class="ot">&lt;-</span> laptime_df <span class="sc">%&gt;%</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Round, Driver, Stint) <span class="sc">%&gt;%</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="fu">cumsum</span>(StintLaps))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>temp <span class="sc">%&gt;%</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Driver <span class="sc">==</span> <span class="st">"VER"</span>,</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitOutTime),   <span class="co"># NOT pit in lap (slower)</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitInTime),    <span class="co"># NTO pit out lap (slower)</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">str_detect</span>(<span class="fu">as.character</span>(TrackStatus), <span class="st">"[4567]"</span>),<span class="co">#SafteyCar,Yellow,RedFlag</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>         Stint <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span>  </span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> StintLaps, <span class="at">y =</span> LapTime, <span class="at">group =</span> Stint, <span class="at">colour =</span> Compound)) <span class="sc">+</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(Round))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>temp <span class="sc">%&gt;%</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Driver <span class="sc">==</span> <span class="st">"VER"</span>,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitOutTime),   <span class="co"># NOT pit in lap (slower)</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitInTime),    <span class="co"># NTO pit out lap (slower)</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">str_detect</span>(<span class="fu">as.character</span>(TrackStatus), <span class="st">"[4567]"</span>),<span class="co">#SafteyCar,Yellow,RedFlag</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>         Stint <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span>  </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> StintLaps, <span class="at">y =</span> LapTime, <span class="at">group =</span> Stint, <span class="at">colour =</span> Compound)) <span class="sc">+</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(Round))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Don't know how to automatically pick scale for object of type &lt;difftime&gt;.
 Defaulting to continuous.</code></pre>
 </div>
 <div class="cell-output-display">
-<p><img src="F1_Tire_Deg_Model_v2_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+<p><img src="F1_Tire_Deg_Model_v2_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
 <!-- -->
@@ -683,128 +711,136 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb12" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "F1 Tire Degradation Model"</span></span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Matthew Kirk"</span></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "`r Sys.Date()`"</span></span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="an">editor:</span><span class="co"> visual</span></span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="fu">## Project Summary</span></span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>Use race lap times to create predictive tire falloff models for each driver, to use live in future races.</span>
-<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>This project uses data from the <span class="co">[</span><span class="ot">FastF1</span><span class="co">](https://docs.fastf1.dev/examples/index.html)</span> Python library, and imports it into the R environment for analysis.</span>
-<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>This project also used the <span class="co">[</span><span class="ot">Ergast F1 API</span><span class="co">](http://ergast.com/mrd/)</span> for initial EDA and simplified models.</span>
-<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
-<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>**TODO:**</span>
-<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span>Normalise lap time some how? First lap = 1 or something?</span>
-<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="ss">    -   </span>Get circuit lap length? Longer lap = more wear per lap?</span>
-<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span>*Extension:* use this tire model to create simulated pit stop prediction models/visualisations (using D3.js).</span>
-<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
-<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a><span class="fu">### Data Sources</span></span>
-<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>Initially, I used the Ergast F1 API as my main source of data, as it was an easy to use API that I could access with simple R tools. However, I soon realised that Ergast was missing a whole lot of data that I was interested in for this project.</span>
-<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>Most importantly, the Ergast API did not track the tire compounds used. This is probably one of the most important pieces of information when trying to model tire degradation, as different compounds may have different falloff properties.</span>
-<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>I was also interested in weather, which Ergast did not track.</span>
-<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>Finally, my long term plan is to have this model run live during a race. Since the Ergast data is only updated hours after a session, it was never going to be the 'final' data source for this project.</span>
-<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>For all these reasons, I decided to use the FastF1 Python library. I was initially hesitant to do this, because I want to do this project in R, and the Ergast API was much faster to pick up. But crucially, the FastF1 API has so much more data, and it has functionality to live stream the data during sessions, which would be useful later in the project when it comes to running these models live. For these reasons I decided I may as well go with FastF1.</span>
-<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>Below is the my code for accessing the data. Note, this script is designed to be run from the command line with one argument (year). The program loops through every race of the season and outputs a single parquet file.</span>
-<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| file: get_race_data.py</span></span>
-<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a><span class="fu">## Packages</span></span>
-<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-load-packages</span></span>
-<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
-<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a><span class="co">#| output: false</span></span>
-<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
-<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(jsonlite)</span>
-<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
-<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
-<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
-<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a><span class="fu">## Import Lap Time &amp; Weather Data</span></span>
-<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: folder structure settings</span></span>
-<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a>DATA_PATH <span class="ot">&lt;-</span> <span class="st">"data/races_2023"</span></span>
-<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a>raw_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">".parquet"</span>))</span>
-<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(raw_df)</span>
-<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a>laptime_df <span class="ot">&lt;-</span> raw_df <span class="sc">%&gt;%</span></span>
-<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Round, Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall)</span>
-<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(laptime_df)</span>
-<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a><span class="fu">## Get Circuit Data</span></span>
-<span id="cb12-99"><a href="#cb12-99" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-100"><a href="#cb12-100" aria-hidden="true" tabindex="-1"></a>The following code access the Race Schedule endpoint of the Ergast F1 API. It then accesses the Wikipedia article for the corresponding race and gets track details such as lap length, and type (street course, permanent faculty).</span>
-<span id="cb12-101"><a href="#cb12-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-102"><a href="#cb12-102" aria-hidden="true" tabindex="-1"></a>Finally, it writes to parquet</span>
-<span id="cb12-103"><a href="#cb12-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-106"><a href="#cb12-106" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-107"><a href="#cb12-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
-<span id="cb12-108"><a href="#cb12-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
-<span id="cb12-109"><a href="#cb12-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| file: get_circuit_data.R</span></span>
-<span id="cb12-110"><a href="#cb12-110" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
-<span id="cb12-111"><a href="#cb12-111" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-112"><a href="#cb12-112" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-113"><a href="#cb12-113" aria-hidden="true" tabindex="-1"></a><span class="fu">## Test Plot</span></span>
-<span id="cb12-114"><a href="#cb12-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-117"><a href="#cb12-117" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-118"><a href="#cb12-118" aria-hidden="true" tabindex="-1"></a>temp <span class="ot">&lt;-</span> laptime_df <span class="sc">%&gt;%</span></span>
-<span id="cb12-119"><a href="#cb12-119" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Round, Driver, Stint) <span class="sc">%&gt;%</span></span>
-<span id="cb12-120"><a href="#cb12-120" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb12-121"><a href="#cb12-121" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="fu">cumsum</span>(StintLaps))</span>
-<span id="cb12-122"><a href="#cb12-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-123"><a href="#cb12-123" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb12-124"><a href="#cb12-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-127"><a href="#cb12-127" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb12-128"><a href="#cb12-128" aria-hidden="true" tabindex="-1"></a>temp <span class="sc">%&gt;%</span></span>
-<span id="cb12-129"><a href="#cb12-129" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Driver <span class="sc">==</span> <span class="st">"VER"</span>,</span>
-<span id="cb12-130"><a href="#cb12-130" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitOutTime),   <span class="co"># NOT pit in lap (slower)</span></span>
-<span id="cb12-131"><a href="#cb12-131" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitInTime),    <span class="co"># NTO pit out lap (slower)</span></span>
-<span id="cb12-132"><a href="#cb12-132" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">str_detect</span>(<span class="fu">as.character</span>(TrackStatus), <span class="st">"[4567]"</span>),<span class="co">#SafteyCar,Yellow,RedFlag</span></span>
-<span id="cb12-133"><a href="#cb12-133" aria-hidden="true" tabindex="-1"></a>         Stint <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span>  </span>
-<span id="cb12-134"><a href="#cb12-134" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
-<span id="cb12-135"><a href="#cb12-135" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> StintLaps, <span class="at">y =</span> LapTime, <span class="at">group =</span> Stint, <span class="at">colour =</span> Compound)) <span class="sc">+</span></span>
-<span id="cb12-136"><a href="#cb12-136" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(Round))</span>
-<span id="cb12-137"><a href="#cb12-137" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-138"><a href="#cb12-138" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<div class="sourceCode" id="cb14" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "F1 Tire Degradation Model"</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> "Matthew Kirk"</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> "`r Sys.Date()`"</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="an">editor:</span><span class="co"> visual</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="fu">## Project Summary</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>Use race lap times to create predictive tire falloff models for each driver, to use live in future races.</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>This project uses data from the <span class="co">[</span><span class="ot">FastF1</span><span class="co">](https://docs.fastf1.dev/examples/index.html)</span> Python library, and imports it into the R environment for analysis.</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>This project also used the <span class="co">[</span><span class="ot">Ergast F1 API</span><span class="co">](http://ergast.com/mrd/)</span> for initial EDA and simplified models.</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>------------------------------------------------------------------------</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>**TODO:**</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span>Normalise lap time some how? First lap = 1 or something?</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a><span class="ss">    -   </span>Get circuit lap length? Longer lap = more wear per lap?</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="ss">-   </span>*Extension:* use this tire model to create simulated pit stop prediction models/visualisations (using D3.js).</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="fu">## Introduction</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a><span class="fu">### Data Sources</span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>Initially, I used the Ergast F1 API as my main source of data, as it was an easy to use API that I could access with simple R tools. However, I soon realised that Ergast was missing a whole lot of data that I was interested in for this project.</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>Most importantly, the Ergast API did not track the tire compounds used. This is probably one of the most important pieces of information when trying to model tire degradation, as different compounds may have different falloff properties.</span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>I was also interested in weather, which Ergast did not track.</span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>Finally, my long term plan is to have this model run live during a race. Since the Ergast data is only updated hours after a session, it was never going to be the 'final' data source for this project.</span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>For all these reasons, I decided to use the FastF1 Python library. I was initially hesitant to do this, because I want to do this project in R, and the Ergast API was much faster to pick up. But crucially, the FastF1 API has so much more data, and it has functionality to live stream the data during sessions, which would be useful later in the project when it comes to running these models live. For these reasons I decided I may as well go with FastF1.</span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>Below is the my code for accessing the data. Note, this script is designed to be run from the command line with one argument (year). The program loops through every race of the season and outputs a single parquet file.</span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb14-49"><a href="#cb14-49" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb14-50"><a href="#cb14-50" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb14-51"><a href="#cb14-51" aria-hidden="true" tabindex="-1"></a><span class="co">#| file: get_race_data.py</span></span>
+<span id="cb14-52"><a href="#cb14-52" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb14-53"><a href="#cb14-53" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-54"><a href="#cb14-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-55"><a href="#cb14-55" aria-hidden="true" tabindex="-1"></a><span class="fu">## Packages</span></span>
+<span id="cb14-56"><a href="#cb14-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-59"><a href="#cb14-59" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-60"><a href="#cb14-60" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: r-load-packages</span></span>
+<span id="cb14-61"><a href="#cb14-61" aria-hidden="true" tabindex="-1"></a><span class="co">#| include: true</span></span>
+<span id="cb14-62"><a href="#cb14-62" aria-hidden="true" tabindex="-1"></a><span class="co">#| output: false</span></span>
+<span id="cb14-63"><a href="#cb14-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-64"><a href="#cb14-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-65"><a href="#cb14-65" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb14-66"><a href="#cb14-66" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb14-67"><a href="#cb14-67" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(jsonlite)</span>
+<span id="cb14-68"><a href="#cb14-68" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb14-69"><a href="#cb14-69" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb14-70"><a href="#cb14-70" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rvest)</span>
+<span id="cb14-71"><a href="#cb14-71" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-72"><a href="#cb14-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-73"><a href="#cb14-73" aria-hidden="true" tabindex="-1"></a><span class="fu">## Import Lap Time &amp; Weather Data</span></span>
+<span id="cb14-74"><a href="#cb14-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-77"><a href="#cb14-77" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-78"><a href="#cb14-78" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: folder structure settings</span></span>
+<span id="cb14-79"><a href="#cb14-79" aria-hidden="true" tabindex="-1"></a>DATA_PATH <span class="ot">&lt;-</span> <span class="st">"data/"</span></span>
+<span id="cb14-80"><a href="#cb14-80" aria-hidden="true" tabindex="-1"></a>YEAR <span class="ot">&lt;-</span> <span class="dv">2023</span></span>
+<span id="cb14-81"><a href="#cb14-81" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-82"><a href="#cb14-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-85"><a href="#cb14-85" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-86"><a href="#cb14-86" aria-hidden="true" tabindex="-1"></a>raw_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">"races_"</span>, YEAR, <span class="st">".parquet"</span>))</span>
+<span id="cb14-87"><a href="#cb14-87" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(raw_df)</span>
+<span id="cb14-88"><a href="#cb14-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-89"><a href="#cb14-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-92"><a href="#cb14-92" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-93"><a href="#cb14-93" aria-hidden="true" tabindex="-1"></a>laptime_df <span class="ot">&lt;-</span> raw_df <span class="sc">%&gt;%</span></span>
+<span id="cb14-94"><a href="#cb14-94" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(Round, Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall)</span>
+<span id="cb14-95"><a href="#cb14-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-96"><a href="#cb14-96" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(laptime_df)</span>
+<span id="cb14-97"><a href="#cb14-97" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-98"><a href="#cb14-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-99"><a href="#cb14-99" aria-hidden="true" tabindex="-1"></a><span class="fu">## Get Circuit Data</span></span>
+<span id="cb14-100"><a href="#cb14-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-101"><a href="#cb14-101" aria-hidden="true" tabindex="-1"></a>The following code access the Race Schedule endpoint of the Ergast F1 API. It then accesses the Wikipedia article for the corresponding race and gets track details such as lap length, and type (street course, permanent faculty). Finally, it writes locally to a parquet file.</span>
+<span id="cb14-102"><a href="#cb14-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-105"><a href="#cb14-105" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-106"><a href="#cb14-106" aria-hidden="true" tabindex="-1"></a><span class="co">#| echo: true</span></span>
+<span id="cb14-107"><a href="#cb14-107" aria-hidden="true" tabindex="-1"></a><span class="co">#| eval: false</span></span>
+<span id="cb14-108"><a href="#cb14-108" aria-hidden="true" tabindex="-1"></a><span class="co">#| file: get_circuit_data.R</span></span>
+<span id="cb14-109"><a href="#cb14-109" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-fold: true</span></span>
+<span id="cb14-110"><a href="#cb14-110" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-111"><a href="#cb14-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-112"><a href="#cb14-112" aria-hidden="true" tabindex="-1"></a>Import circuits dataframe.&nbsp;</span>
+<span id="cb14-113"><a href="#cb14-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-116"><a href="#cb14-116" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-117"><a href="#cb14-117" aria-hidden="true" tabindex="-1"></a>circuits_df <span class="ot">&lt;-</span> <span class="fu">read_parquet</span>(<span class="fu">paste0</span>(DATA_PATH, <span class="st">"circuits_"</span>, YEAR, <span class="st">".parquet"</span>))</span>
+<span id="cb14-118"><a href="#cb14-118" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(circuits_df)</span>
+<span id="cb14-119"><a href="#cb14-119" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-120"><a href="#cb14-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-121"><a href="#cb14-121" aria-hidden="true" tabindex="-1"></a>Join circuits dataframe to laptime dataframe:</span>
+<span id="cb14-122"><a href="#cb14-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-123"><a href="#cb14-123" aria-hidden="true" tabindex="-1"></a><span class="fu">## Test Plot</span></span>
+<span id="cb14-124"><a href="#cb14-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-127"><a href="#cb14-127" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-128"><a href="#cb14-128" aria-hidden="true" tabindex="-1"></a>temp <span class="ot">&lt;-</span> laptime_df <span class="sc">%&gt;%</span></span>
+<span id="cb14-129"><a href="#cb14-129" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(Round, Driver, Stint) <span class="sc">%&gt;%</span></span>
+<span id="cb14-130"><a href="#cb14-130" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb14-131"><a href="#cb14-131" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">StintLaps =</span> <span class="fu">cumsum</span>(StintLaps))</span>
+<span id="cb14-132"><a href="#cb14-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-133"><a href="#cb14-133" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb14-134"><a href="#cb14-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-137"><a href="#cb14-137" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb14-138"><a href="#cb14-138" aria-hidden="true" tabindex="-1"></a>temp <span class="sc">%&gt;%</span></span>
+<span id="cb14-139"><a href="#cb14-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Driver <span class="sc">==</span> <span class="st">"VER"</span>,</span>
+<span id="cb14-140"><a href="#cb14-140" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitOutTime),   <span class="co"># NOT pit in lap (slower)</span></span>
+<span id="cb14-141"><a href="#cb14-141" aria-hidden="true" tabindex="-1"></a>         <span class="fu">is.na</span>(PitInTime),    <span class="co"># NTO pit out lap (slower)</span></span>
+<span id="cb14-142"><a href="#cb14-142" aria-hidden="true" tabindex="-1"></a>         <span class="sc">!</span><span class="fu">str_detect</span>(<span class="fu">as.character</span>(TrackStatus), <span class="st">"[4567]"</span>),<span class="co">#SafteyCar,Yellow,RedFlag</span></span>
+<span id="cb14-143"><a href="#cb14-143" aria-hidden="true" tabindex="-1"></a>         Stint <span class="sc">==</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span>  </span>
+<span id="cb14-144"><a href="#cb14-144" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb14-145"><a href="#cb14-145" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x =</span> StintLaps, <span class="at">y =</span> LapTime, <span class="at">group =</span> Stint, <span class="at">colour =</span> Compound)) <span class="sc">+</span></span>
+<span id="cb14-146"><a href="#cb14-146" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="fu">vars</span>(Round))</span>
+<span id="cb14-147"><a href="#cb14-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-148"><a href="#cb14-148" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
