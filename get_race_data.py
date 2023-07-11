@@ -19,7 +19,7 @@ def get_race_data(YEAR: int, roundNum: int) -> pd.DataFrame:
     try:
         session = fastf1.get_session(YEAR, roundNum, "R")
     except ValueError:
-        sys.exit("Invalid YEAR or ROUND_NUMBER provided")
+        return None
 
     session.load(weather=True, telemetry=False)
 
