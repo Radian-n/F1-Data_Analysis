@@ -28,11 +28,11 @@ circuits_df <- unnest(fromJSON(circuit_url)$MRData$RaceTable$Races,
 # datetime, etc.)
 circuits_df <- circuits_df %>%
   select(season, round, url, raceName, Circuit_circuitId, date, time) %>%
-  rename(CircuitId = Circuit_circuitId, RaceDate = date, RaceTime = time) %>%
+  rename(CircuitId = Circuit_circuitId, RaceDate = date, RaceTime = time, Round = round, Season = season) %>%
   mutate(RaceDate = ymd(RaceDate),
          RaceTime = hms(RaceTime),
-         Round = as.numeric(round),
-         Season = as.numeric(season))
+         Round = as.numeric(Round),
+         Season = as.numeric(Season))
 
 
 # # Define function to extract lap distance from Wikipedia race repo --------

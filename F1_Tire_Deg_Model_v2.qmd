@@ -73,7 +73,7 @@ library(lubridate)
 library(jsonlite)
 library(knitr)
 library(arrow)
-library(rvest)
+library(GGally)
 ```
 
 ## Import Lap Time & Weather Data
@@ -82,7 +82,7 @@ library(rvest)
 #| label: folder-structure-settings
 
 
-DATA_PATH <- paste0(getwd(), "data/")
+DATA_PATH <- "data/"
 YEAR <- 2023
 ```
 
@@ -93,7 +93,8 @@ head(raw_df)
 
 ```{r}
 laptime_df <- raw_df %>%
-  select(Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall)
+  select(Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall, Round, Season) %>%
+  rename(CompoundSimple = Compound)
 
 head(laptime_df)
 ```
@@ -112,15 +113,51 @@ The following code access the Race Schedule endpoint of the Ergast F1 API. It th
 Import circuits dataframe. 
 
 ```{r}
-circuits_df <- read_parquet(paste0(DATA_PATH, "circuits_", YEAR, ".parquet"))
+circuits_df <- read_parquet(paste0(DATA_PATH, "circuits_", YEAR, ".parquet")) %>%
+  select(-url)
+
 head(circuits_df)
 ```
 
 Join circuits dataframe to laptime dataframe:
 
 ```{r}
+laptime_df <- laptime_df %>%
+  left_join(circuits_df, by = c("Season", "Round"))
+
+head(laptime_df)
+```
+
+## Get Tire Compound Data
+
+I manually created a csv file with the tire compounds (e.g. C0, C1, ... C5) for each round of the past 2 seasons.
+
+```{r}
+compound_df <- read_csv(paste0(DATA_PATH, "tire_compounds.csv"))
+head(compound_df)
+```
+
+```{r}
+compound_pivot_df <- compound_df %>%
+  pivot_longer(cols = c(SOFT, MEDIUM, HARD), names_to = "CompoundSimple", values_to = "Compound_C")
+
+laptime_df <- laptime_df %>%
+  left_join(compound_pivot_df, by = c("Season", "Round", "CompoundSimple"))
+
+laptime_df <- laptime_df %>%
+  mutate(Compound = case_when(
+    CompoundSimple == "INTERMEDIATE" ~ "INTER",
+    CompoundSimple == "WET" ~ "WET",
+    TRUE ~ Compound_C)) %>%
+  select(-Compound_C)
+
+head(laptime_df)
+```
+
+```{r}
 laptime_df %>%
-  left_join(circuits_df, by = c(round, ))
+  group_by(Compound) %>%
+  summarise(Laps = n())
 ```
 
 ## Test Plot
@@ -139,9 +176,15 @@ temp %>%
          is.na(PitOutTime),   # NOT pit in lap (slower)
          is.na(PitInTime),    # NTO pit out lap (slower)
          !str_detect(as.character(TrackStatus), "[4567]"),#SafteyCar,Yellow,RedFlag
-         Stint == 2) %>%  
+         Stint == 1) %>%  
   ggplot() + 
-  geom_point(aes(x = StintLaps, y = LapTime, group = Stint, colour = Compound)) +
+  geom_point(aes(x = StintLaps, y = LapTime, group = Stint, colour = Compound_C)) +
   facet_wrap(vars(Round))
+
+```
+
+## Test Model
+
+```{r}
 
 ```
