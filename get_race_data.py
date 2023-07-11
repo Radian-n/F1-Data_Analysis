@@ -51,7 +51,7 @@ def get_completed_num_rounds():
 
 
 def write_parquet(dataframe) -> None:
-    filepath = Path(f'data/races_{arg_year_str}.parquet')  
+    filepath = Path(f'data/races_{arg_year_int}.parquet')  
     filepath.parent.mkdir(parents=True, exist_ok=True)
     dataframe.to_parquet(filepath, index=False)
     return
