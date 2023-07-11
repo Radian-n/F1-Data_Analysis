@@ -87,14 +87,48 @@ YEAR <- 2023
 ```
 
 ```{r}
+# Get FastF1 data from exported dataframe
 raw_df <- read_parquet(paste0(DATA_PATH, "races_", YEAR, ".parquet"))
 head(raw_df)
 ```
 
+## Missing Lap Time Data
+
+As you can see below, there are quite a few missing laptimes in the dataset. A lot of these are due to changes in TrackStatus. This denotes when theres been a safety car, yellow flag, red flag etc. These are laps that are not particularly useful for our analysis. However there are a few missing laptimes not under special track conditions.
+
 ```{r}
-laptime_df <- raw_df %>%
+missing_laptimes <- raw_df %>%
+  filter(is.na(LapTime)) %>%
+  arrange(Season, Round, LapNumber)
+
+count(missing_laptimes)
+
+head(missing_laptimes)
+
+```
+
+The dataset includes sector times for each lap. Therefore, we can sum these sector times to derive the missing lap times. (I checked before that the summation of sector times only varies from the recorded laptime by tiny fractions of a second).
+
+```{r}
+a_raw_df <- raw_df %>% 
+  mutate(LapTime = ifelse(is.na(LapTime),
+                          as.numeric(Sector1Time + Sector2Time + Sector3Time),
+                          LapTime))
+still_missing_laps <- a_raw_df %>%
+  filter(is.na(LapTime),
+         is.na(TrackStatus) | !str_detect(as.character(TrackStatus), "[4567]"))
+still_missing_laps
+```
+
+This leaves 40 laps under normal (or unknown) racing conditions.
+
+There are a significant number of missing laps in round 3 (The Australian GP). These missing laps correspond to the laps when a red flag was flown, and the race was suspended, and the following lap which is an outlap. Thus, neither of these laps are under racing conditions. Thus I will leave those laps as undefined. The other missing lap times seem to correspond to the exact lap a driver retired from the race.
+
+```{r}
+laptime_df <- a_raw_df %>%
   select(Driver, DriverNumber, LapTime, LapNumber, Position, Stint, PitOutTime, PitInTime, Compound, TyreLife, FreshTyre, Team, TrackStatus, Time, AirTemp, TrackTemp, Humidity, Pressure, Rainfall, Round, Season) %>%
-  rename(CompoundSimple = Compound)
+  rename(CompoundSimple = Compound) %>%
+  mutate(LapTime = as.numeric(LapTime))
 
 head(laptime_df)
 ```
@@ -122,7 +156,7 @@ head(circuits_df)
 Join circuits dataframe to laptime dataframe:
 
 ```{r}
-laptime_df <- laptime_df %>%
+a_laptime_df <- laptime_df %>%
   left_join(circuits_df, by = c("Season", "Round"))
 
 head(laptime_df)
@@ -141,10 +175,10 @@ head(compound_df)
 compound_pivot_df <- compound_df %>%
   pivot_longer(cols = c(SOFT, MEDIUM, HARD), names_to = "CompoundSimple", values_to = "Compound_C")
 
-laptime_df <- laptime_df %>%
+b_laptime_df <- a_laptime_df %>%
   left_join(compound_pivot_df, by = c("Season", "Round", "CompoundSimple"))
 
-laptime_df <- laptime_df %>%
+c_laptime_df <- b_laptime_df %>%
   mutate(Compound = case_when(
     CompoundSimple == "INTERMEDIATE" ~ "INTER",
     CompoundSimple == "WET" ~ "WET",
@@ -155,7 +189,7 @@ head(laptime_df)
 ```
 
 ```{r}
-laptime_df %>%
+c_laptime_df %>%
   group_by(Compound) %>%
   summarise(Laps = n())
 ```
@@ -163,28 +197,37 @@ laptime_df %>%
 ## Test Plot
 
 ```{r}
-temp <- laptime_df %>%
+temp <- c_laptime_df %>%
   group_by(Round, Driver, Stint) %>%
   mutate(StintLaps = 1) %>%
   mutate(StintLaps = cumsum(StintLaps))
-
 ```
 
 ```{r}
 temp %>%
-  filter(Driver == "VER",
-         is.na(PitOutTime),   # NOT pit in lap (slower)
-         is.na(PitInTime),    # NTO pit out lap (slower)
-         !str_detect(as.character(TrackStatus), "[4567]"),#SafteyCar,Yellow,RedFlag
-         Stint == 1) %>%  
+  filter(
+    Driver == "LEC",
+    Round == 1,
+    is.na(PitOutTime),   # NOT pit in lap (slower)
+    is.na(PitInTime),    # NTO pit out lap (slower)
+    #SafteyCar,Yellow,RedFlag
+    !str_detect(as.character(TrackStatus), "[4567]"),
+    Compound != "INTER",
+    Compound != "WET") %>%  
   ggplot() + 
-  geom_point(aes(x = StintLaps, y = LapTime, group = Stint, colour = Compound_C)) +
-  facet_wrap(vars(Round))
+  geom_point(aes(x = TyreLife, y = LapTime, group = Stint, colour = CompoundSimple), alpha = 0.4) + 
+  geom_smooth(aes(x = TyreLife, y = LapTime, group = CompoundSimple, colour = CompoundSimple))
 
 ```
 
-## Test Model
+## Test Analysis
+
+I need to normalise laptime and lap length ?
 
 ```{r}
+model1 <- lm(LapTime ~ DriverNumber + LapNumber + TrackTemp + Rainfall+ CircuitId + circuitType + Compound, data = c_laptime_df)
 
+plot(model1)
+
+summary(model1)
 ```
